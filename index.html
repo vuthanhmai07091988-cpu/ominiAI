@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniAI Workspace - Multi-AI Chat & Comparison Studio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gemini: '#1a73e8',
+                        chatgpt: '#10a37f',
+                        claude: '#d97706',
+                        grok: '#dc2626',
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbars and sleek utility styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.4); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
+        .prose pre { padding: 0; background: transparent; }
+        .prose code { color: #38bdf8; font-family: monospace; }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-subtle { animation: pulse-subtle 1.8s infinite; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-darkbg text-gray-800 dark:text-gray-100 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-200">
+
+    <!-- Navigation Header -->
+    <header class="h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 z-20 shrink-0">
+        <div class="flex items-center gap-3">
+            <button id="toggle-sidebar-btn" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition md:hidden">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-tight bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                        OmniAI Hub
+                    </h1>
+                    <p class="text-[10px] text-gray-400 -mt-1 hidden sm:block">Gemini • ChatGPT • Claude • Grok</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-xs sm:text-sm font-medium">
+            <button id="mode-chat" onclick="switchViewMode('single')" class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 font-semibold">
+                <i class="fa-solid fa-message"></i> <span class="hidden sm:inline">Trò chuyện</span>
+            </button>
+            <button id="mode-compare" onclick="switchViewMode('compare')" class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i class="fa-solid fa-columns"></i> <span class="hidden sm:inline">So sánh AI</span>
+            </button>
+            <button id="mode-debate" onclick="switchViewMode('debate')" class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i class="fa-solid fa-comments"></i> <span class="hidden sm:inline">Tranh luận AI</span>
+            </button>
+        </div>
+
+        <!-- Actions & Settings -->
+        <div class="flex items-center gap-2">
+            <button onclick="openSettingsModal()" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition" title="Cài đặt API & Models">
+                <i class="fa-solid fa-gear text-lg"></i>
+            </button>
+            <button id="theme-toggle-btn" onclick="toggleTheme()" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition" title="Đổi giao diện">
+                <i class="fa-solid fa-moon text-lg dark:hidden"></i>
+                <i class="fa-solid fa-sun text-lg hidden dark:block text-amber-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-72 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-gray-800 flex flex-col z-10 absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 shadow-xl md:shadow-none">
+            
+            <!-- New Chat Button -->
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800">
+                <button onclick="startNewChat()" class="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium shadow-md flex items-center justify-center gap-2 transition transform active:scale-95">
+                    <i class="fa-solid fa-plus"></i> Cuộc hội thoại mới
+                </button>
+            </div>
+
+            <!-- Model Selection Bar (In Single Mode) -->
+            <div id="single-model-selector" class="p-3 border-b border-gray-100 dark:border-gray-800">
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2 px-1">Mô hình AI hoạt động</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="selectModel('gemini')" id="btn-model-gemini" class="model-select-btn p-2 rounded-lg border-2 border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium flex items-center gap-2 transition">
+                        <i class="fa-solid fa-bolt text-blue-500"></i> Gemini 3
+                    </button>
+                    <button onclick="selectModel('chatgpt')" id="btn-model-chatgpt" class="model-select-btn p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium flex items-center gap-2 transition hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <i class="fa-solid fa-robot text-emerald-500"></i> ChatGPT-4o
+                    </button>
+                    <button onclick="selectModel('claude')" id="btn-model-claude" class="model-select-btn p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium flex items-center gap-2 transition hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <i class="fa-solid fa-brain text-amber-500"></i> Claude 3.5
+                    </button>
+                    <button onclick="selectModel('grok')" id="btn-model-grok" class="model-select-btn p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium flex items-center gap-2 transition hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <i class="fa-solid fa-fire text-red-500"></i> Grok 3
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat History List -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-1" id="chat-history-list">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">Lịch sử hội thoại</div>
+                <!-- Chat history items will be dynamically inserted here -->
+            </div>
+
+            <!-- Quick Prompt Library -->
+            <div class="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-slate-900/50">
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">Gợi ý nhanh</label>
+                <div class="space-y-1">
+                    <button onclick="useQuickPrompt('So sánh điểm mạnh và điểm yếu của 4 mô hình AI này.')" class="w-full text-left p-1.5 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 truncate transition">
+                        💡 So sánh 4 AI lớn nhất
+                    </button>
+                    <button onclick="useQuickPrompt('Viết một script Python cào dữ liệu web an toàn và tối ưu.')" class="w-full text-left p-1.5 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 truncate transition">
+                        💻 Lập trình Python Cào Web
+                    </button>
+                    <button onclick="useQuickPrompt('Tạo dàn ý bài viết Marketing truyền thông mạng xã hội.')" class="w-full text-left p-1.5 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 truncate transition">
+                        📝 Dàn ý Marketing Content
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 flex flex-col h-full bg-gray-50 dark:bg-darkbg overflow-hidden">
+            
+            <!-- Single Mode Workspace -->
+            <div id="view-single" class="flex-1 flex flex-col overflow-hidden">
+                <!-- Single Chat Header Bar -->
+                <div class="p-3 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs sm:text-sm">
+                    <div class="flex items-center gap-2">
+                        <span id="active-model-badge" class="px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-bolt"></i> Google Gemini 3
+                        </span>
+                        <span class="text-gray-400 hidden md:inline">• Mô hình tối ưu tốc độ & tra cứu Google Search</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-1.5 cursor-pointer select-none text-gray-600 dark:text-gray-300">
+                            <input type="checkbox" id="toggle-search-grounding" class="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-800" checked>
+                            <span><i class="fa-solid fa-globe text-blue-500"></i> Search Realtime</span>
+                        </label>
+                        <button onclick="clearCurrentChat()" class="text-gray-400 hover:text-red-500 transition" title="Xóa cuộc trò chuyện">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages Output Container -->
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                    <!-- Welcome Card -->
+                    <div class="max-w-2xl mx-auto text-center py-10 px-4">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-purple-600 text-white text-3xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                            <i class="fa-solid fa-sparkles"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold mb-2">OmniAI Workspace</h2>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                            Giao diện hợp nhất trí tuệ nhân tạo. Đặt câu hỏi, viết code, phân tích dữ liệu hoặc so sánh phản hồi từ nhiều AI hàng đầu trong cùng một màn hình.
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                            <div onclick="useQuickPrompt('Giải thích nguyên lý hoạt động của Mô hình ngôn ngữ lớn (LLM)?')" class="p-3 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 cursor-pointer transition shadow-sm">
+                                <div class="font-medium text-xs text-blue-500 mb-1">Kiến thức tổng quan</div>
+                                <div class="text-sm font-semibold">Giải thích nguyên lý LLM là gì?</div>
+                            </div>
+                            <div onclick="useQuickPrompt('Viết lại đoạn văn này cho trang trọng và chuyên nghiệp hơn.')" class="p-3 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 hover:border-emerald-500 dark:hover:border-emerald-500 cursor-pointer transition shadow-sm">
+                                <div class="font-medium text-xs text-emerald-500 mb-1">Viết lách & Biên tập</div>
+                                <div class="text-sm font-semibold">Viết lại văn bản chuyên nghiệp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compare Mode Workspace -->
+            <div id="view-compare" class="flex-1 flex-col overflow-hidden hidden">
+                <div class="p-3 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs sm:text-sm">
+                    <div class="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                        <i class="fa-solid fa-columns text-purple-500"></i> Chế độ so sánh song song (Multi-Model View)
+                    </div>
+                    <div class="text-xs text-gray-400">1 Prompt ➡️ Phản hồi đồng thời từ 3 AI</div>
+                </div>
+
+                <!-- Split Grid Container -->
+                <div class="flex-1 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-800 overflow-hidden bg-white dark:bg-slate-900">
+                    <!-- Column 1: Gemini -->
+                    <div class="flex flex-col h-full overflow-hidden">
+                        <div class="p-2.5 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900/30 font-semibold text-xs text-blue-600 dark:text-blue-400 flex items-center justify-between">
+                            <span><i class="fa-solid fa-bolt"></i> Google Gemini 3</span>
+                            <span class="text-[10px] bg-blue-200 dark:bg-blue-800/60 px-1.5 py-0.5 rounded">Search Grounded</span>
+                        </div>
+                        <div id="compare-messages-gemini" class="flex-1 overflow-y-auto p-3 space-y-4 text-xs sm:text-sm">
+                            <div class="text-center text-gray-400 py-8">Sẵn sàng nhận prompt so sánh...</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: ChatGPT -->
+                    <div class="flex flex-col h-full overflow-hidden">
+                        <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/30 font-semibold text-xs text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
+                            <span><i class="fa-solid fa-robot"></i> OpenAI ChatGPT-4o</span>
+                            <span class="text-[10px] bg-emerald-200 dark:bg-emerald-800/60 px-1.5 py-0.5 rounded">Balanced</span>
+                        </div>
+                        <div id="compare-messages-chatgpt" class="flex-1 overflow-y-auto p-3 space-y-4 text-xs sm:text-sm">
+                            <div class="text-center text-gray-400 py-8">Sẵn sàng nhận prompt so sánh...</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Claude -->
+                    <div class="flex flex-col h-full overflow-hidden">
+                        <div class="p-2.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-100 dark:border-amber-900/30 font-semibold text-xs text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                            <span><i class="fa-solid fa-brain"></i> Anthropic Claude 3.5</span>
+                            <span class="text-[10px] bg-amber-200 dark:bg-amber-800/60 px-1.5 py-0.5 rounded">Deep Nuance</span>
+                        </div>
+                        <div id="compare-messages-claude" class="flex-1 overflow-y-auto p-3 space-y-4 text-xs sm:text-sm">
+                            <div class="text-center text-gray-400 py-8">Sẵn sàng nhận prompt so sánh...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debate View Workspace -->
+            <div id="view-debate" class="flex-1 flex-col overflow-hidden hidden">
+                <div class="p-3 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs sm:text-sm">
+                    <div class="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                        <i class="fa-solid fa-comments text-pink-500"></i> AI Roundtable Debate
+                    </div>
+                    <div class="text-xs text-gray-400">Các AI sẽ lần lượt đưa ra quan điểm và phản biện lẫn nhau</div>
+                </div>
+                <div id="debate-messages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                    <div class="max-w-xl mx-auto text-center py-10">
+                        <i class="fa-solid fa-people-arrows text-4xl text-pink-500 mb-3"></i>
+                        <h3 class="font-bold text-lg mb-1">Tạo một chủ đề tranh luận</h3>
+                        <p class="text-xs text-gray-400 mb-4">Nhập một chủ đề phức tạp (ví dụ: "Trí tuệ nhân tạo có thể thay thế hoàn toàn lập trình viên trong 10 năm tới không?") để xem các AI đối thoại và tranh luận.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area Footer -->
+            <div class="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-gray-800 relative z-10 shrink-0">
+                <div class="max-w-4xl mx-auto">
+                    
+                    <!-- Attachment Preview Banner -->
+                    <div id="attachment-preview" class="hidden mb-2 p-2 bg-gray-100 dark:bg-slate-800 rounded-lg flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <img id="attached-img-thumb" class="w-8 h-8 object-cover rounded border" src="" alt="attachment">
+                            <span id="attached-file-name" class="truncate font-medium">image.png</span>
+                        </div>
+                        <button onclick="removeAttachment()" class="text-gray-400 hover:text-red-500 p-1"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <!-- Input Box Form -->
+                    <form id="chat-form" onsubmit="handleSend(event)" class="relative flex items-end bg-gray-100 dark:bg-slate-800 rounded-2xl p-2 border border-transparent focus-within:border-blue-500 dark:focus-within:border-blue-500 transition shadow-inner">
+                        
+                        <!-- File Upload Button -->
+                        <label class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer transition rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-paperclip text-lg"></i>
+                            <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                        </label>
+
+                        <!-- Textarea Prompt Input -->
+                        <textarea id="prompt-input" rows="1" placeholder="Nhập câu hỏi hoặc yêu cầu cho AI tại đây... (Shift+Enter để xuống dòng)" 
+                            class="flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-36 py-2 px-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+                            onkeydown="handleKeyDown(event)"></textarea>
+
+                        <!-- Speech Input Button -->
+                        <button type="button" id="mic-btn" onclick="toggleVoiceInput()" class="p-2 text-gray-400 hover:text-blue-500 transition rounded-xl" title="Nói để nhập văn bản">
+                            <i class="fa-solid fa-microphone text-lg"></i>
+                        </button>
+
+                        <!-- Send Button -->
+                        <button type="submit" id="send-btn" class="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition flex items-center justify-center shadow-md ml-1 active:scale-95 disabled:opacity-50">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+
+                    <div class="flex justify-between items-center text-[11px] text-gray-400 px-2 mt-1.5">
+                        <span>OmniAI tích hợp Google Gemini API. ChatGPT, Claude & Grok được tối ưu hoá qua Persona Engine.</span>
+                        <span id="char-counter">0 ký tự</span>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800 transform transition-all">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-blue-500"></i> Cấu hình Mô hình & API Key
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+                <!-- Gemini API Key Input -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Custom Gemini API Key (Không bắt buộc)</label>
+                    <input type="password" id="custom-api-key" placeholder="Mặc định sử dụng Key môi trường Canvas" 
+                        class="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <p class="text-[11px] text-gray-400 mt-1">Để trống nếu muốn dùng API tích hợp sẵn trong giao diện Canvas.</p>
+                </div>
+
+                <!-- Temperature Slider -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-semibold uppercase text-gray-500">Độ sáng tạo (Temperature)</label>
+                        <span id="temp-value" class="text-xs font-bold text-blue-500">0.7</span>
+                    </div>
+                    <input type="range" id="temp-range" min="0" max="1" step="0.1" value="0.7" oninput="document.getElementById('temp-value').innerText = this.value"
+                        class="w-full accent-blue-600">
+                    <div class="flex justify-between text-[10px] text-gray-400">
+                        <span>Chính xác / Logic</span>
+                        <span>Sáng tạo / Tự do</span>
+                    </div>
+                </div>
+
+                <!-- System Instruction Editor -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Chỉ thị hệ thống (System Prompt)</label>
+                    <textarea id="system-prompt-input" rows="3" placeholder="Ví dụ: Bạn là trợ lý hỗ trợ lập trình viên cao cấp..." 
+                        class="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="p-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-2">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 text-xs font-semibold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition">Hủy</button>
+                <button onclick="saveSettings()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm">Lưu cấu hình</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-20 right-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-slate-700 transform translate-y-10 opacity-0 pointer-events-none transition-all duration-300">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toast-msg">Đã lưu cài đặt</span>
+    </div>
+
+    <script>
+        /* State Variables */
+        let activeViewMode = 'single'; // 'single', 'compare', 'debate'
+        let activeModel = 'gemini'; // 'gemini', 'chatgpt', 'claude', 'grok'
+        let attachedBase64Image = null;
+        let isProcessing = false;
+        let customApiKey = '';
+        let temperature = 0.7;
+        let systemInstruction = 'Bạn là một trợ lý trí tuệ nhân tạo thông minh, lịch sự và hữu ích, trả lời bằng tiếng Việt một cách rõ ràng.';
+        let recognition = null;
+        let isListening = false;
+
+        // Model Configurations & Persona Definitions
+        const modelProfiles = {
+            gemini: {
+                name: 'Google Gemini 3',
+                icon: 'fa-bolt',
+                color: 'text-blue-500',
+                badgeBg: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400',
+                persona: 'Bạn là Gemini 3 Flash, mô hình AI siêu tốc của Google. Phong cách trả lời của bạn mạch lạc, khách quan, dựa trên dữ liệu thực tế và luôn sẵn sàng cập nhật thông tin mới nhất.'
+            },
+            chatgpt: {
+                name: 'OpenAI ChatGPT-4o',
+                icon: 'fa-robot',
+                color: 'text-emerald-500',
+                badgeBg: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
+                persona: 'Bạn là ChatGPT-4o của OpenAI. Bạn có phong cách trả lời thân thiện, linh hoạt, cấu trúc thông tin rõ ràng với các gạch đầu dòng khoa học và khả năng lập trình vượt trội.'
+            },
+            claude: {
+                name: 'Anthropic Claude 3.5',
+                icon: 'fa-brain',
+                color: 'text-amber-500',
+                badgeBg: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400',
+                persona: 'Bạn là Claude 3.5 Sonnet từ Anthropic. Văn phong của bạn tinh tế, chiều sâu tri thức cao, lập luận logic phân tích sắc bén và chú trọng sự an toàn, chuẩn xác.'
+            },
+            grok: {
+                name: 'xAI Grok 3',
+                icon: 'fa-fire',
+                color: 'text-red-500',
+                badgeBg: 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
+                persona: 'Bạn là Grok 3 của xAI. Phong cách của bạn trực diện, hóm hỉnh, giàu thông tin thời sự, có chút hài hước thông minh và không ngại đi thẳng vào trọng tâm vấn đề.'
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Setup Marked highlight logic
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        return hljs.highlight(code, { language: lang }).value;
+                    }
+                    return hljs.highlightAuto(code).value;
+                },
+                breaks: true
+            });
+
+            // Auto resize textarea
+            const promptInput = document.getElementById('prompt-input');
+            promptInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+                document.getElementById('char-counter').innerText = `${this.value.length} ký tự`;
+            });
+
+            // Speech Recognition Setup
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.lang = 'vi-VN';
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    promptInput.value += (promptInput.value ? ' ' : '') + transcript;
+                    promptInput.dispatchEvent(new Event('input'));
+                    toggleVoiceInput(false);
+                };
+                recognition.onerror = () => toggleVoiceInput(false);
+                recognition.onend = () => toggleVoiceInput(false);
+            } else {
+                document.getElementById('mic-btn').style.display = 'none';
+            }
+
+            // Mobile sidebar toggle
+            document.getElementById('toggle-sidebar-btn').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            });
+        });
+
+        /* Dark / Light Theme Toggle */
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            showToast('Đã chuyển đổi giao diện');
+        }
+
+        /* Mode View Switcher */
+        function switchViewMode(mode) {
+            activeViewMode = mode;
+            
+            // Buttons UI update
+            ['single', 'compare', 'debate'].forEach(m => {
+                const btn = document.getElementById(`mode-${m}`);
+                if (m === mode) {
+                    btn.className = 'px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 font-semibold';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white';
+                }
+            });
+
+            // Hide all views
+            document.getElementById('view-single').classList.add('hidden');
+            document.getElementById('view-compare').classList.add('hidden');
+            document.getElementById('view-debate').classList.add('hidden');
+
+            // Show current view & sidebar options
+            const singleSelector = document.getElementById('single-model-selector');
+            if (mode === 'single') {
+                document.getElementById('view-single').classList.remove('hidden');
+                singleSelector.classList.remove('hidden');
+            } else if (mode === 'compare') {
+                document.getElementById('view-compare').classList.remove('hidden');
+                singleSelector.classList.add('hidden');
+            } else if (mode === 'debate') {
+                document.getElementById('view-debate').classList.remove('hidden');
+                singleSelector.classList.add('hidden');
+            }
+        }
+
+        /* Model Selection in Single Mode */
+        function selectModel(modelKey) {
+            activeModel = modelKey;
+            const profile = modelProfiles[modelKey];
+
+            // Update Sidebar buttons state
+            document.querySelectorAll('.model-select-btn').forEach(btn => {
+                btn.className = 'model-select-btn p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium flex items-center gap-2 transition hover:bg-gray-50 dark:hover:bg-gray-800';
+            });
+            const selectedBtn = document.getElementById(`btn-model-${modelKey}`);
+            selectedBtn.className = `model-select-btn p-2 rounded-lg border-2 border-blue-500 bg-blue-500/10 ${profile.color} text-xs font-medium flex items-center gap-2 transition`;
+
+            // Update Badge
+            const badge = document.getElementById('active-model-badge');
+            badge.className = `px-2.5 py-1 rounded-full ${profile.badgeBg} font-semibold flex items-center gap-1.5`;
+            badge.innerHTML = `<i class="fa-solid ${profile.icon}"></i> ${profile.name}`;
+            
+            showToast(`Đã chuyển sang ${profile.name}`);
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showToast('Chỉ hỗ trợ đính kèm hình ảnh!', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                attachedBase64Image = evt.target.result;
+                document.getElementById('attached-img-thumb').src = attachedBase64Image;
+                document.getElementById('attached-file-name').innerText = file.name;
+                document.getElementById('attachment-preview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeAttachment() {
+            attachedBase64Image = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('attachment-preview').classList.add('hidden');
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+            }
+        }
+
+        function handleSend(e) {
+            e.preventDefault();
+            if (isProcessing) return;
+
+            const inputEl = document.getElementById('prompt-input');
+            const promptText = inputEl.value.trim();
+
+            if (!promptText && !attachedBase64Image) return;
+
+            // Clear Input
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            document.getElementById('char-counter').innerText = '0 ký tự';
+
+            if (activeViewMode === 'single') {
+                processSingleChat(promptText, attachedBase64Image);
+            } else if (activeViewMode === 'compare') {
+                processCompareChat(promptText);
+            } else if (activeViewMode === 'debate') {
+                processDebate(promptText);
+            }
+
+            removeAttachment();
+        }
+
+        async function processSingleChat(prompt, imageBase64) {
+            isProcessing = true;
+            toggleLoadingState(true);
+
+            const chatMessagesContainer = document.getElementById('chat-messages');
+            
+            // User Message UI
+            appendUserMessage(chatMessagesContainer, prompt, imageBase64);
+
+            // Bot Message Shell
+            const profile = modelProfiles[activeModel];
+            const botMsgId = 'msg-' + Date.now();
+            appendBotMessageShell(chatMessagesContainer, botMsgId, profile);
+
+            // Fetch AI Response
+            try {
+                const responseText = await fetchAIResponse(activeModel, prompt, imageBase64);
+                renderBotResponse(botMsgId, responseText);
+            } catch (err) {
+                renderBotResponse(botMsgId, `⚠️ **Lỗi kết nối:** ${err.message || 'Không thể tải phản hồi từ API.'}`);
+            } finally {
+                isProcessing = false;
+                toggleLoadingState(false);
+            }
+        }
+
+        /* Compare Mode Chat Logic (Parallel AI requests) */
+        async function processCompareChat(prompt) {
+            isProcessing = true;
+            toggleLoadingState(true);
+
+            const models = ['gemini', 'chatgpt', 'claude'];
+
+            models.forEach(m => {
+                const container = document.getElementById(`compare-messages-${m}`);
+                appendUserMessage(container, prompt, null, true);
+                const botMsgId = `compare-${m}-${Date.now()}`;
+                appendBotMessageShell(container, botMsgId, modelProfiles[m], true);
+            });
+
+            // Send requests concurrently
+            const promises = models.map(async (m) => {
+                const botMsgId = document.querySelector(`[id^="compare-${m}-"]`).id;
+                try {
+                    const res = await fetchAIResponse(m, prompt);
+                    renderBotResponse(botMsgId, res);
+                } catch (err) {
+                    renderBotResponse(botMsgId, `⚠️ Lỗi: ${err.message}`);
+                }
+            });
+
+            await Promise.all(promises);
+            isProcessing = false;
+            toggleLoadingState(false);
+        }
+
+        /* Debate Mode Logic */
+        async function processDebate(prompt) {
+            isProcessing = true;
+            toggleLoadingState(true);
+
+            const debateContainer = document.getElementById('debate-messages');
+            debateContainer.innerHTML = ''; // Reset container
+
+            appendUserMessage(debateContainer, `[Chủ đề tranh luận]: ${prompt}`);
+
+            const participants = ['gemini', 'chatgpt', 'claude', 'grok'];
+            let debateHistory = `Chủ đề tranh luận: ${prompt}\n`;
+
+            for (const p of participants) {
+                const profile = modelProfiles[p];
+                const botMsgId = `debate-${p}-${Date.now()}`;
+                appendBotMessageShell(debateContainer, botMsgId, profile);
+
+                const debatePrompt = `Dựa vào đề tài: "${prompt}" và các ý kiến trước đây:\n${debateHistory}\n` + 
+                    `Hãy đưa ra góc nhìn độc đáo, ngắn gọn (khoảng 2-3 đoạn văn) theo đúng cá tính của mô hình ${profile.name}.`;
+
+                try {
+                    const reply = await fetchAIResponse(p, debatePrompt);
+                    renderBotResponse(botMsgId, reply);
+                    debateHistory += `\n${profile.name}: ${reply}\n`;
+                } catch (err) {
+                    renderBotResponse(botMsgId, `⚠️ Không thể tham gia tranh luận.`);
+                }
+                // Delay slightly for dramatic debate effect
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            isProcessing = false;
+            toggleLoadingState(false);
+        }
+
+        async function fetchAIResponse(modelKey, promptText, imageBase64 = null) {
+            const profile = modelProfiles[modelKey];
+            const isGroundingEnabled = document.getElementById('toggle-search-grounding').checked;
+
+            // Base prompt construction incorporating model persona
+            const effectiveSystemInstruction = `${systemInstruction}\n${profile.persona}`;
+
+            // API Endpoint & Payload
+            const apiKey = customApiKey || '';
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            // Build parts array
+            const parts = [];
+            if (promptText) {
+                parts.push({ text: promptText });
+            }
+
+            if (imageBase64) {
+                const base64Data = imageBase64.split(',')[1];
+                const mimeType = imageBase64.substring(imageBase64.indexOf(':') + 1, imageBase64.indexOf(';'));
+                parts.push({
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64Data
+                    }
+                });
+            }
+
+            const payload = {
+                contents: [{ parts: parts }],
+                systemInstruction: {
+                    parts: [{ text: effectiveSystemInstruction }]
+                },
+                generationConfig: {
+                    temperature: parseFloat(temperature)
+                }
+            };
+
+            // Enable search grounding if checked and model is Gemini
+            if (modelKey === 'gemini' && isGroundingEnabled) {
+                payload.tools = [{ "google_search": {} }];
+            }
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                let text = candidate.content.parts[0].text;
+                
+                // Append citations if search grounding occurred
+                const groundingAttributions = candidate.groundingMetadata?.groundingAttributions;
+                if (groundingAttributions && groundingAttributions.length > 0) {
+                    text += '\n\n---\n**🔍 Nguồn tham khảo từ Google Search:**\n';
+                    const uniqueSources = new Set();
+                    groundingAttributions.forEach(attr => {
+                        if (attr.web?.uri && attr.web?.title) {
+                            uniqueSources.add(`- [${attr.web.title}](${attr.web.uri})`);
+                        }
+                    });
+                    text += Array.from(uniqueSources).join('\n');
+                }
+
+                return text;
+            } else {
+                return 'Không nhận được câu trả lời hợp lệ từ AI.';
+            }
+        }
+
+        function appendUserMessage(container, text, imageBase64 = null, isCompact = false) {
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = 'flex justify-end mb-4';
+            
+            let imgHtml = '';
+            if (imageBase64) {
+                imgHtml = `<img src="${imageBase64}" class="max-w-xs max-h-48 rounded-lg mb-2 border border-gray-300 dark:border-gray-700">`;
+            }
+
+            userMsgDiv.innerHTML = `
+                <div class="max-w-[85%] bg-blue-600 text-white rounded-2xl rounded-tr-none ${isCompact ? 'p-2.5 text-xs' : 'p-4 text-sm'} shadow-md">
+                    ${imgHtml}
+                    <div class="whitespace-pre-wrap">${escapeHtml(text)}</div>
+                </div>
+            `;
+            container.appendChild(userMsgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendBotMessageShell(container, msgId, profile, isCompact = false) {
+            const botMsgDiv = document.createElement('div');
+            botMsgDiv.id = msgId;
+            botMsgDiv.className = 'flex gap-3 mb-6 animate-fade-in';
+
+            botMsgDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-xl ${profile.badgeBg} flex items-center justify-center shrink-0 font-bold text-sm shadow-sm">
+                    <i class="fa-solid ${profile.icon}"></i>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="font-bold text-xs ${profile.color}">${profile.name}</span>
+                        <span class="text-[10px] text-gray-400">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    <div class="bot-content prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 ${isCompact ? 'text-xs' : 'text-sm'}">
+                        <div class="flex items-center gap-2 text-gray-400 italic">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Đang suy nghĩ và phản hồi...
+                        </div>
+                    </div>
+                    <!-- Action Toolbar -->
+                    <div class="bot-actions hidden flex items-center gap-3 mt-2 text-xs text-gray-400">
+                        <button onclick="copyMessageText('${msgId}')" class="hover:text-blue-500 transition" title="Sao chép">
+                            <i class="fa-solid fa-copy"></i> Copy
+                        </button>
+                        <button onclick="speakMessageText('${msgId}')" class="hover:text-emerald-500 transition" title="Đọc văn bản">
+                            <i class="fa-solid fa-volume-high"></i> Đọc
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(botMsgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function renderBotResponse(msgId, markdownText) {
+            const botMsgEl = document.getElementById(msgId);
+            if (!botMsgEl) return;
+
+            const contentEl = botMsgEl.querySelector('.bot-content');
+            const actionsEl = botMsgEl.querySelector('.bot-actions');
+
+            // Parse Markdown
+            contentEl.innerHTML = marked.parse(markdownText);
+            
+            // Show Actions
+            if (actionsEl) actionsEl.classList.remove('hidden');
+
+            // Scroll to view
+            const parent = botMsgEl.parentElement;
+            parent.scrollTop = parent.scrollHeight;
+        }
+
+        function copyMessageText(msgId) {
+            const el = document.getElementById(msgId);
+            if (!el) return;
+            const text = el.querySelector('.bot-content').innerText;
+            
+            // Clipboard fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            showToast('Đã sao chép vào bộ nhớ tạm');
+        }
+
+        function speakMessageText(msgId) {
+            const el = document.getElementById(msgId);
+            if (!el) return;
+            const text = el.querySelector('.bot-content').innerText;
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Stop current speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'vi-VN';
+                window.speechSynthesis.speak(utterance);
+                showToast('Đang phát âm thanh...');
+            } else {
+                showToast('Trình duyệt không hỗ trợ chuyển văn bản thành giọng nói', 'error');
+            }
+        }
+
+        function toggleVoiceInput(forceState) {
+            if (!recognition) return;
+
+            isListening = forceState !== undefined ? forceState : !isListening;
+            const micBtn = document.getElementById('mic-btn');
+
+            if (isListening) {
+                try {
+                    recognition.start();
+                    micBtn.classList.add('text-red-500', 'animate-pulse');
+                    showToast('Đang lắng nghe giọng nói...');
+                } catch (e) {
+                    isListening = false;
+                }
+            } else {
+                try {
+                    recognition.stop();
+                } catch (e) {}
+                micBtn.classList.remove('text-red-500', 'animate-pulse');
+            }
+        }
+
+        function useQuickPrompt(prompt) {
+            const inputEl = document.getElementById('prompt-input');
+            inputEl.value = prompt;
+            inputEl.dispatchEvent(new Event('input'));
+            inputEl.focus();
+        }
+
+        function startNewChat() {
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="max-w-2xl mx-auto text-center py-10 px-4">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-purple-600 text-white text-3xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                        <i class="fa-solid fa-sparkles"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold mb-2">Cuộc trò chuyện mới</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Sẵn sàng phản hồi mọi câu hỏi của bạn.</p>
+                </div>
+            `;
+            ['gemini', 'chatgpt', 'claude'].forEach(m => {
+                const c = document.getElementById(`compare-messages-${m}`);
+                if (c) c.innerHTML = '<div class="text-center text-gray-400 py-8">Sẵn sàng nhận prompt so sánh...</div>';
+            });
+            document.getElementById('debate-messages').innerHTML = '';
+            showToast('Đã bắt đầu phiên trò chuyện mới');
+        }
+
+        function clearCurrentChat() {
+            startNewChat();
+        }
+
+        function openSettingsModal() {
+            document.getElementById('custom-api-key').value = customApiKey;
+            document.getElementById('temp-range').value = temperature;
+            document.getElementById('temp-value').innerText = temperature;
+            document.getElementById('system-prompt-input').value = systemInstruction;
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            customApiKey = document.getElementById('custom-api-key').value.trim();
+            temperature = parseFloat(document.getElementById('temp-range').value);
+            systemInstruction = document.getElementById('system-prompt-input').value.trim() || systemInstruction;
+            closeSettingsModal();
+            showToast('Cài đặt đã được lưu!');
+        }
+
+        function toggleLoadingState(loading) {
+            const sendBtn = document.getElementById('send-btn');
+            if (loading) {
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            } else {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+            }
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msgEl = document.getElementById('toast-msg');
+
+            msgEl.innerText = msg;
+            if (type === 'error') {
+                icon.className = 'fa-solid fa-triangle-exclamation text-red-400 text-base';
+            } else {
+                icon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
+            }
+
+            toast.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
